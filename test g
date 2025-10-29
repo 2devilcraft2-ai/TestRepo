@@ -1,0 +1,145 @@
+import random
+from colorama import init, Fore, Style
+
+# Inicializar colorama
+init(autoreset=True)
+
+class Character:
+    def __init__(self, nombre, vida, daño, crit_chance=0.1):
+        self.nombre = nombre
+        self.vida = vida
+        self.daño = daño
+        self.crit_chance = crit_chance
+        self.nivel = 1
+        self.max_vida = vida  # Para las barras de vida
+
+    def atacar(self, objetivo):
+        golpe = self.daño
+        critico = False
+        if random.random() < self.crit_chance:
+            golpe *= 2
+            critico = True
+        objetivo.vida -= golpe
+        if objetivo.vida < 0:
+            objetivo.vida = 0
+        return golpe, critico
+
+    def curarse(self, cantidad):
+        self.vida += cantidad
+        if self.vida > self.max_vida:
+            self.vida = self.max_vida
+
+    def esta_vivo(self):
+        return self.vida > 0
+
+    def subir_nivel(self):
+        self.nivel += 1
+        self.max_vida += 50
+        self.daño += 50
+        self.vida = self.max_vida
+        print(Fore.CYAN + f"\n¡{self.nombre} sube al nivel {self.nivel}!")
+        print(Fore.CYAN + f"Vida restaurada a {self.vida}, daño aumentado a {self.daño}\n")
+
+# Crear personajes
+guerrero = Character("Guerrero", 100, 50, crit_chance=0.2)
+enemigos = [
+    Character("Enemigo Fuerte", 200, 100, crit_chance=0.15),
+    Character("Enemigo Medio", 100, 50, crit_chance=0.10),
+    Character("Enemigo Débil", 50, 20, crit_chance=0.05)
+]
+
+# Función para mostrar barra de vida
+def barra_vida(vida, max_vida):
+    total = 20
+    llenado = int(vida / max_vida * total)
+    return "[" + "#"*llenado + "-"*(total - llenado) + "]"
+
+# Función para mostrar personajes con colores
+def mostrar_personaje(personaje):
+    color = Fore.GREEN if "Guerrero" in personaje.nombre else Fore.RED
+    print(color + f"{personaje.nombre} (Nivel {personaje.nivel}) {barra_vida(personaje.vida, personaje.max_vida)} {personaje.vida}/{personaje.max_vida} HP, Daño: {personaje.daño}")
+
+def mostrar_enemigos(enemigos):
+    for e in enemigos:
+        if e.esta_vivo():
+            mostrar_personaje(e)
+
+# Arte ASCII opcional para el guerrero
+def mostrar_ascii():
+    ascii_art = r"""
+        \o/ 
+         |   Guerrero listo para la batalla
+        / \
+    """
+    print(Fore.YELLOW + ascii_art)
+
+# Mostrar información inicial
+print(Fore.MAGENTA + "--- COMIENZA EL COMBATE ---")
+mostrar_ascii()
+mostrar_personaje(guerrero)
+print("Enemigos:")
+mostrar_enemigos(enemigos)
+
+curaciones_disponibles = 3
+
+# Juego principal
+while guerrero.esta_vivo() and any(e.esta_vivo() for e in enemigos):
+    print(Fore.MAGENTA + "\n--- Turno del Guerrero ---")
+    mostrar_ascii()
+    mostrar_personaje(guerrero)
+    print("Enemigos vivos:")
+    mostrar_enemigos(enemigos)
+
+    accion = input(Fore.CYAN + "¿Qué quieres hacer? (atacar/curar/especial): ").lower()
+
+    if accion == "atacar":
+        for i, e in enumerate(enemigos):
+            if e.esta_vivo():
+                print(f"{i+1}. {e.nombre}")
+        enemigo_elegido = int(input("Elige enemigo por número: ")) - 1
+        if enemigo_elegido < 0 or enemigo_elegido >= len(enemigos) or not enemigos[enemigo_elegido].esta_vivo():
+            print(Fore.RED + "Elección inválida, pierdes tu turno.\n")
+            continue
+
+        daño_hecho, critico = guerrero.atacar(enemigos[enemigo_elegido])
+        msg = f"{guerrero.nombre} hace {daño_hecho} de daño a {enemigos[enemigo_elegido].nombre}."
+        if critico: msg = Fore.YELLOW + "¡CRÍTICO! " + msg
+        print(msg)
+        if not enemigos[enemigo_elegido].esta_vivo():
+            print(Fore.RED + f"{enemigos[enemigo_elegido].nombre} ha sido derrotado!")
+            guerrero.subir_nivel()
+
+        # Enemigo contraataca
+        if enemigos[enemigo_elegido].esta_vivo():
+            daño_enemigo, critico_enemigo = enemigos[enemigo_elegido].atacar(guerrero)
+            msg_enemigo = f"{enemigos[enemigo_elegido].nombre} hace {daño_enemigo} de daño a {guerrero.nombre}."
+            if critico_enemigo: msg_enemigo = Fore.YELLOW + "¡CRÍTICO! " + msg_enemigo
+            print(Fore.RED + msg_enemigo)
+
+    elif accion == "curar":
+        if curaciones_disponibles > 0:
+            guerrero.curarse(30)
+            curaciones_disponibles -= 1
+            print(Fore.GREEN + f"{guerrero.nombre} se cura 30 puntos. Curaciones restantes: {curaciones_disponibles}")
+        else:
+            print(Fore.RED + "No te quedan curaciones. Pierdes tu turno.\n")
+
+    elif accion == "especial":
+        print(Fore.CYAN + "¡Usando ataque especial! Inflige daño doble a todos los enemigos vivos.")
+        for enemigo in enemigos:
+            if enemigo.esta_vivo():
+                guerrero.daño *= 2
+                daño_hecho, critico = guerrero.atacar(enemigo)
+                guerrero.daño //= 2
+                msg = f"{guerrero.nombre} hace {daño_hecho} de daño a {enemigo.nombre}."
+                if critico: msg = Fore.YELLOW + "¡CRÍTICO! " + msg
+                print(msg)
+                if not enemigo.esta_vivo():
+                    print(Fore.RED + f"{enemigo.nombre} ha sido derrotado!")
+                    guerrero.subir_nivel()
+
+# Resultado final
+if guerrero.esta_vivo():
+    print(Fore.GREEN + "¡El guerrero ha vencido a todos los enemigos!")
+else:
+    print(Fore.RED + "¡El guerrero ha sido derrotado!")
